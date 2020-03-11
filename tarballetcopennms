@@ -1,0 +1,5 @@
+#!/bin/bash
+# This script will tarball the etc opennms directory everynight at 3 AM under root user
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+cd /etc;
+tar cvzf etc-opennms-v24-prod.tar.gz ./opennms;

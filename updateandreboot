@@ -1,0 +1,11 @@
+#!/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+systemctl stop opennms;
+systemctl stop grafana-server;
+systemctl stop postgresql;
+systemctl stop syslog-ng;
+apt-get update;
+apt-get upgrade -y;
+apt-get dist-upgrade -y;
+apt-get autoremove -y;
+reboot;

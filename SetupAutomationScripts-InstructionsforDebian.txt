@@ -1,0 +1,96 @@
+If you haven't held your packages from being updated by the repo, then do so now before adding any automation scripting.
+I've provided the scripts described in here, but you MUST fix the permissions as described in these instructions.
+Be sure you setup your system clock for the correct time zone your server lives in.
+
+1) In debian/Ubuntu, you can use this with OpenNMS 25.2.0
+
+sudo apt-mark hold opennms \
+	opennms-db \
+	opennms-server \
+	opennms-webapp-jetty \
+	opennms-contrib \
+	opennms-server \
+	opennms-plugin-* \
+	opennms-source \
+	libopennms-java \
+    	libopennmsdeps-java \
+    	opennms-common \
+	opennms-webapp-hawtio \
+	opennms-webapp-remoting \
+	opennms-alec-plugin \
+	opennms-jmx-config-generator \
+	opennms-plugins \
+	opennms-doc
+
+
+
+2) Setup SQL dump script and cron job. This particular script creates a directory from the repo installation of postgres10 on an 18.04 LTS server.
+You shouldn't have to modify it too much to fit your needs.
+It's bash.
+
+First: create a directory called backup with the proper postgres user permissions here
+sudo mkdir /var/lib/postgresql/backup/
+sudo chown postgres:postgres /var/lib/postgresql/backup
+
+Second: Create script and place it in /var/lib/postgresql/postgresdump.sh. Script is next 4 lines. You don't need the blank space at the top or the tabs.
+
+	#!/bin/bash
+	now=`date`
+	#This script is to dump not just the opennms database, but all databases, templates, etc.
+	#pg_dumpall > /var/lib/postgresql/backup/fullbackup_"$now".sql;
+
+
+Third: Change to postgresql user (you might have to sudo su to root first, then enter postgres user). 
+Enter crontab for postgresql user dump with this crontab, or set your own. It takes a dump every night at 4:05 AM based on this schedule.
+
+	5       4       *       *       *       /var/lib/postgresql/postgresdump.sh
+
+
+Fourth: Exit postgresql user. Exit back to regular user. Start cron, and Enable crond to start on boot.
+sudo systemctl start cron
+sudo systemctl enable cron
+
+
+
+3) Setup update/upgrade/patches script and cron job.
+It's bash, but you will need to make the permissions root:root, and NOT put .sh on the end of the script name, otherwise it won't work.
+I place my script in the /opt directory, but wherever you put it, be sure the folder is root based priv. Call the script whatever you want. I called it updateandreboot in this example.
+Script is on next 11 lines. You don't need the blank space at the top or the tabs. You can also see my installation includes grafana, which will be covered in a later notebook.
+
+	#!/bin/bash
+	PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+	systemctl stop opennms;
+	systemctl stop grafana-server;
+	systemctl stop postgresql;
+	systemctl stop syslog-ng;
+	apt-get update;
+	apt-get upgrade -y;
+	apt-get dist-upgrade -y;
+	apt-get autoremove -y;
+	reboot;
+
+
+Next: Setup Cronjob. Change to root and edit crontab for root user. This will run script every 2 days at 2:30 AM.
+
+	30	2	*/2	*	*	/opt/updateandreboot
+
+
+4) Setup daily tarball for OpenNMS directory so your inventory changes within the requistions is backed up daily. GOOD IDEA!!!! ... so your database and XML entries maintain the same foreign ID reference for upgrades/migrations/restores.
+I put this script in opt, also set it up as root permissions as well. If your opennms directory is NOT in the /etc/opennms folder, you will need to change the path that the script changes directory into.
+Script is next 5 lines.
+
+	#!/bin/bash
+	# This script will tarball the etc opennms directory everynight at 3 AM under root user
+	PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+	cd /etc;
+	tar cvzf etc-opennms-v24-prod.tar.gz ./opennms;
+
+Next: Setup cronjob under root crontab. Don't overwrite your existing cron entry for the updatesandreboots.
+Script is called tarballetcopennms in my example the script is in the /opt directory. Mind the .sh is NOT at the end of the script as this will not work for root level bash scripts.
+
+	
+	30       3       *       *       * /opt/tarballetcopennms
+
+
+
+
